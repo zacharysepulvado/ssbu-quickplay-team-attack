@@ -1,5 +1,14 @@
 # Quickplay Team Attack ON — SSBU 13.0.5
 
+> [!CAUTION]
+> **Confirmed v0.3.0 timeout bug:** Twenty minutes after plugin startup, the
+> capture thread calls `application_probe::stop()`. This also disables the Team
+> Attack mutation callbacks and clears the armed session. The hooks remain
+> installed, but the mod no longer changes proposals after that point. Fully
+> closing and relaunching Smash resets the timer; re-copying Atmosphère is not
+> required. Treat v0.3.0 as an experimental time-limited build until a corrected
+> release is available.
+
 This Skyline plugin proposes Team Attack ON in Super Smash Bros. Ultimate
 Quickplay co-op. It was built for game version 13.0.5 and tested in
 online doubles matches against unmodified opponents. In the matches, both
