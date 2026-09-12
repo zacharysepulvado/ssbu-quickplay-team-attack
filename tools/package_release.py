@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package reviewed source and an optional v0.3.0 release NRO."""
+"""Package reviewed source and an optional v0.3.1 release NRO."""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -8,7 +8,7 @@ import struct
 import zipfile
 from pathlib import Path
 
-ROOT_FILES = {"Cargo.toml", "Cargo.lock", "README.md", "CONTRIBUTING.md", "LICENSE", ".gitignore", "BUILD_REPORT.md", "TECHNICAL_DEVELOPMENT.md", "RELEASE_NOTES_0.3.0.md"}
+ROOT_FILES = {"Cargo.toml", "Cargo.lock", "README.md", "CONTRIBUTING.md", "LICENSE", ".gitignore", "BUILD_REPORT.md", "TECHNICAL_DEVELOPMENT.md", "RELEASE_NOTES_0.3.0.md", "RELEASE_NOTES_0.3.1.md"}
 DIR_SUFFIXES = {"src": {".rs"}, "config": {".example"}, "research": {".md"}, "tools": {".py", ".sh"}, "ghidra": {".py", ".md"}}
 REVIEWED_METADATA = {"README.md", "manifest.json"}
 PLUGIN_NAME = "libssbu_quickplay_team_attack.nro"
@@ -85,7 +85,7 @@ def main() -> int:
             validate_nro(binary)
             nro = output / PLUGIN_NAME
             shutil.copyfile(args.nro, nro)
-            install = output / "SSBU-Team-Attack-ON-0.3.0.zip"
+            install = output / "SSBU-Team-Attack-ON-0.3.1.zip"
             with zipfile.ZipFile(install, "x") as archive:
                 add_bytes(archive, PLUGIN_PATH, binary)
                 add_bytes(archive, "ultimate/quickplay_team_attack/config.toml", (root / "config/proposal_experiment_13_0_5.toml.example").read_bytes())

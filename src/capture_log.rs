@@ -141,6 +141,7 @@ pub fn write_header(writer: &mut impl Write, config: &Config) -> io::Result<()> 
         writeln!(writer, "# global_poll_interval_ms=250")?;
         writeln!(writer, "# watch_heartbeat_ms=5000")?;
         writeln!(writer, "# watch_limit_ms=1200000")?;
+        writeln!(writer, "# mutation_lifetime=process")?;
     }
     writeln!(
         writer,
@@ -221,6 +222,7 @@ mod tests {
         fs::write(&old, "prior session: do not overwrite\n").unwrap();
         let config = Config {
             capture_offsets: vec![0x11],
+            poll_global_team_attack: true,
             ..Config::default()
         };
         let (mut log, path) = CaptureLog::create(&directory, &config).unwrap();
@@ -232,6 +234,7 @@ mod tests {
             env!("CARGO_PKG_VERSION"),
             "\n"
         )));
+        assert!(header.contains("# mutation_lifetime=process\n"));
         assert!(!header.lines().any(|line| line.starts_with("dump ")));
         log.status("hook_installed").unwrap();
         assert!(fs::read_to_string(&path)

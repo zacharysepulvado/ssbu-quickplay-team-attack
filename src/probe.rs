@@ -245,7 +245,7 @@ pub fn install(config: Config) -> Result<(), String> {
                     if log.status("hook_installed").is_err() {
                         WRITER_READY.store(false, Ordering::Release);
                         crate::codec_probe::stop();
-                        crate::application_probe::stop();
+                        crate::application_probe::stop_recording();
                         skyline::println!(
                             "[team-attack] startup status write failed; capture stopped\n"
                         );
@@ -256,8 +256,10 @@ pub fn install(config: Config) -> Result<(), String> {
                 if global_addresses.is_some() && elapsed_ms >= watch::WATCH_LIMIT_MS {
                     WRITER_READY.store(false, Ordering::Release);
                         crate::codec_probe::stop();
-                        crate::application_probe::stop();
-                    let _ = log.status("watch_limit_reached_20_minutes_observation_stopped");
+                        crate::application_probe::stop_recording();
+                    let _ = log.status(
+                        "watch_limit_reached_20_minutes_observation_stopped_mutation_active",
+                    );
                     return;
                 }
                 let mut dirty = false;
@@ -267,7 +269,7 @@ pub fn install(config: Config) -> Result<(), String> {
                         Err(_) => {
                             WRITER_READY.store(false, Ordering::Release);
                         crate::codec_probe::stop();
-                        crate::application_probe::stop();
+                        crate::application_probe::stop_recording();
                             return;
                         }
                     }
@@ -276,7 +278,7 @@ pub fn install(config: Config) -> Result<(), String> {
                         if log.event(&format!("codec_counts: elapsed_ms:{elapsed_ms} encode:{} decode:{} dropped:{}", counts.0, counts.1, counts.2)).is_err() {
                             WRITER_READY.store(false, Ordering::Release);
                         crate::codec_probe::stop();
-                        crate::application_probe::stop();
+                        crate::application_probe::stop_recording();
                             return;
                         }
                         last_codec = Some(counts);
@@ -287,12 +289,12 @@ pub fn install(config: Config) -> Result<(), String> {
                 if observe_application {
                     match crate::application_probe::drain(&mut log) {
                         Ok(written) => dirty |= written,
-                        Err(_) => {WRITER_READY.store(false, Ordering::Release);crate::codec_probe::stop();crate::application_probe::stop();return;}
+                        Err(_) => {WRITER_READY.store(false, Ordering::Release);crate::codec_probe::stop();crate::application_probe::stop_recording();return;}
                     }
                     let counts = crate::application_probe::counts();
                     if last_application != Some(counts) || elapsed_ms.saturating_sub(last_application_ms) >= 5000 {
                         if log.event(&format!("application_counts: elapsed_ms:{elapsed_ms} local:{} participant:{} ready:{} before:{} after:{} submit:{} receive:{} stored:{} dropped:{}", counts.0[0],counts.0[1],counts.0[2],counts.0[3],counts.0[4],counts.0[5],counts.0[6],counts.0[7],counts.1)).is_err() {
-                            WRITER_READY.store(false, Ordering::Release);crate::codec_probe::stop();crate::application_probe::stop();return;
+                            WRITER_READY.store(false, Ordering::Release);crate::codec_probe::stop();crate::application_probe::stop_recording();return;
                         }
                         last_application=Some(counts);last_application_ms=elapsed_ms;dirty=true;
                     }
@@ -306,7 +308,7 @@ pub fn install(config: Config) -> Result<(), String> {
                         {
                             WRITER_READY.store(false, Ordering::Release);
                         crate::codec_probe::stop();
-                        crate::application_probe::stop();
+                        crate::application_probe::stop_recording();
                             skyline::println!("[team-attack] write failed; capture stopped\n");
                             return;
                         }
@@ -331,7 +333,7 @@ pub fn install(config: Config) -> Result<(), String> {
                         if log.watch(elapsed_ms, state).is_err() {
                             WRITER_READY.store(false, Ordering::Release);
                         crate::codec_probe::stop();
-                        crate::application_probe::stop();
+                        crate::application_probe::stop_recording();
                             skyline::println!(
                                 "[team-attack] global watch write failed; capture stopped\n"
                             );
@@ -343,7 +345,7 @@ pub fn install(config: Config) -> Result<(), String> {
                 if dirty && log.flush().is_err() {
                     WRITER_READY.store(false, Ordering::Release);
                         crate::codec_probe::stop();
-                        crate::application_probe::stop();
+                        crate::application_probe::stop_recording();
                     skyline::println!("[team-attack] flush failed; capture stopped\n");
                     return;
                 }
@@ -352,7 +354,7 @@ pub fn install(config: Config) -> Result<(), String> {
     {
         WRITER_READY.store(false, Ordering::Release);
                         crate::codec_probe::stop();
-                        crate::application_probe::stop();
+                        crate::application_probe::stop_recording();
         return Err(format!("writer could not start: {error}"));
     }
 

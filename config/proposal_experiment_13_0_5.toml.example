@@ -1,4 +1,4 @@
-# Guarded SSBU 13.0.5 Team Attack proposal experiment 0.3.0.
+# Guarded SSBU 13.0.5 Team Attack proposal experiment 0.3.1.
 enabled = true
 mode = "proposal_experiment"
 expected_game_version = "13.0.5"
@@ -11,7 +11,7 @@ reviewed_buffer_len = 105
 evidence_reviewed = true
 offline_test_acknowledged = true
 capture_offsets = "11"
-run_label = "LOCAL_B4_ON_EXPERIMENT_01"
+run_label = "LOCAL_B4_ON_EXPERIMENT_02"
 max_dumps = 256
 poll_global_team_attack = true
 observe_rule_codec = true

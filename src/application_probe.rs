@@ -172,13 +172,20 @@ pub fn start(tick: u64) {
     START.store(tick, Ordering::Relaxed);
     ACTIVE.store(true, Ordering::Release);
 }
-pub fn stop() {
+/// Stop only diagnostic event capture. The proposal experiment is process
+/// scoped and intentionally remains enabled until Smash exits.
+pub fn stop_recording() {
     ACTIVE.store(false, Ordering::Release);
-    ARMED_SESSION.store(0, Ordering::Release);
 }
 
 unsafe fn observe(kind: usize, ctx: &InlineCtx) {
-    if !ACTIVE.load(Ordering::Acquire) {
+    let policy = application::hook_policy(
+        EXPERIMENT.load(Ordering::Acquire),
+        ACTIVE.load(Ordering::Acquire),
+    );
+    // Only local-copy and rule-submit hooks can mutate. Once recording ends,
+    // all other callbacks return without reading game state.
+    if !policy.record && (!policy.mutate || !matches!(kind, 0 | 5)) {
         return;
     }
     // At submit entry the original ABI is (session, u16 command, buffer,
@@ -190,7 +197,14 @@ unsafe fn observe(kind: usize, ctx: &InlineCtx) {
     {
         return;
     }
-    let mutation_action = unsafe { mutate_if_guarded(kind, ctx) };
+    let mutation_action = if policy.mutate && matches!(kind, 0 | 5) {
+        unsafe { mutate_if_guarded(kind, ctx) }
+    } else {
+        0xff
+    };
+    if !policy.record {
+        return;
+    }
     CALLS[kind].fetch_add(1, Ordering::Relaxed);
     let base = BASE.load(Ordering::Relaxed);
     let mode = unsafe { word(base + application::MODE_OFFSET) };

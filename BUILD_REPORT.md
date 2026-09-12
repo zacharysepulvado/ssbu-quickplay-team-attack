@@ -1,4 +1,4 @@
-# Build report — guarded local B4 proposal experiment 0.3.0
+# Build report — guarded local B4 proposal experiment 0.3.1
 
 Built for Super Smash Bros. Ultimate 13.0.5 from observer 0.2.6 and capture
 0014. The experiment changes only a reviewed command-B4 payload Team Attack
@@ -33,10 +33,22 @@ the second selected the local-copy branch and fired the guarded mirror. The
 live Team Attack global remained `01` during both match periods and no
 application or codec events were dropped.
 
-This is evidence from two successful matches, not a guarantee for every
-matchmaking outcome, region, plugin combination, future game update, or ban
-safety.
+Version 0.3.1 corrects the v0.3.0 lifecycle bug that disabled mutation when the
+20-minute diagnostic window ended. Diagnostic recording remains bounded, but
+the process-scoped proposal experiment and its armed-session state remain live.
+Only `local_copy` and `rule_submit` continue evaluating mutation guards after
+recording stops; all other application callbacks return without reading game
+state. A regression test requires mutation to remain enabled when recording is
+inactive.
 
-Validation performed for this release is recorded in
-`research/VALIDATION_0_3_0.md`; release hashes are in `SHA256SUMS.txt` beside
-the packaged files.
+The earlier hardware evidence remains evidence of the proposal mechanism, not
+a guarantee for every matchmaking outcome, region, plugin combination, future
+game update, or ban safety. The 0.3.1 lifecycle fix still requires a live test
+that crosses the 20-minute boundary.
+
+Version 0.3.1 passed 35 host Rust tests, 15 Python project tests, host Clippy
+with warnings denied, Switch-target Skyline Clippy, release compilation, and
+129 compiled AArch64 callback-emulation cases. The release NRO SHA-256 is
+`b14811cb9e4d480fe0a0aa7010bf8b9bc71af12c50cd825cc6921d0f6a0200ac`.
+Validation is recorded in `research/VALIDATION_0_3_1.md`; release-product
+hashes are in `SHA256SUMS.txt` beside the packaged files.

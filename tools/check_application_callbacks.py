@@ -115,7 +115,9 @@ def run(elf_path):
             assert u.reg_read(UC_ARM64_REG_SP)==ST+0xf000
             for i in range(32):assert u.reg_read(UC_ARM64_REG_Q0+i)==0x123456789abcdef0123456789abcdef0+i
             assert u.reg_read(UC_ARM64_REG_FPCR)==0 and u.reg_read(UC_ARM64_REG_FPSR)==0x800009f
-        qualifies = active and (kind!=5 or command & 0xffff == 0xb4 and length & 0xffffffff == 0xd0 and not null)
+        valid_submit = kind!=5 or command & 0xffff == 0xb4 and length & 0xffffffff == 0xd0 and not null
+        qualifies = active and valid_submit
+        accesses_game = qualifies or experiment and kind in (0,5) and valid_submit
         captured=min(repeats,64) if qualifies else 0
         assert len(calls)==captured
         bank=kind+(8 if mode==0x07010102 else 0)
@@ -141,7 +143,7 @@ def run(elf_path):
             assert struct.unpack('<Q',u.mem_read(syms['ARMED_SESSION'],8))[0]==(S if permitted_game_writes else (S if armed else 0))
         if kind==0:assert bytes(u.mem_read(S+0x21fa9,1))==bytes([1 if permitted_game_writes else team])
         allowed={(G+0x53050f0,4)}
-        if qualifies:
+        if accesses_game:
             allowed|={(S+0x269c0,4),(S+0x26a62,1),(G+0x53144d8,1)}
             allowed.add((S+0x9ff8,8))
             allowed|={(S+0xa010+8+slot*0x78,8) for slot in range(16)}
@@ -153,7 +155,7 @@ def run(elf_path):
             elif kind==6:allowed.add((R+0x11,1))
             elif kind==7 and not invalid:allowed.add((S+0xb6a9+3*0x1350,1))
         assert set(reads)<=allowed,(set(reads)-allowed)
-        if not qualifies:assert not reads
+        if not accesses_game:assert not reads
     cases=0
     for kind in range(8):
         for mode in [0,0x07010102]:
@@ -167,6 +169,10 @@ def run(elf_path):
         case(5,0x07010102,1,1,**kw);cases+=1
     case(5,0x07010102,0,1,experiment=True,prepared=0);cases+=1
     case(0,0x07010102,0,1,experiment=True,prepared=0,armed=True);cases+=1
+    # Regression for v0.3.0: recording may be inactive while mutation remains
+    # process-active after the 20-minute observation window.
+    case(5,0x07010102,0,1,active=False,experiment=True,prepared=0);cases+=1
+    case(0,0x07010102,0,1,active=False,experiment=True,prepared=0,armed=True);cases+=1
     for kw in [dict(proposal_slot=4),dict(origin=0),dict(prepared=1)]:
         case(5,0x07010102,0,1,experiment=True,**kw);cases+=1
     case(5,0,0,1,experiment=True,prepared=0);cases+=1

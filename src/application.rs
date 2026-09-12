@@ -26,6 +26,22 @@ pub const NAMES: [&str; SITE_COUNT] = [
 pub const SUBMIT_ORIGINS: [&str; 4] = ["state_update", "local_record", "per_slot", "initial_local"];
 pub const MUTATION_ACTIONS: [&str; 2] = ["proposal_00_to_01", "local_mirror_00_to_01"];
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct HookPolicy {
+    pub mutate: bool,
+    pub record: bool,
+}
+
+/// Mutation and diagnostic recording have deliberately independent lifetimes.
+/// In proposal-experiment mode the write path must remain live after the
+/// bounded capture window closes.
+pub const fn hook_policy(experiment_enabled: bool, recording_active: bool) -> HookPolicy {
+    HookPolicy {
+        mutate: experiment_enabled,
+        record: recording_active,
+    }
+}
+
 /// At the generic B4 submission hook x30 still contains the direct caller's
 /// return address. Keep only a reviewed four-value classification; never log
 /// a code address.
@@ -266,6 +282,30 @@ mod tests {
         assert_eq!(identity_slot(entries[11], &entries), Some(11));
         assert_eq!(identity_slot(0, &entries), None);
         assert_eq!(identity_slot(0xdead, &entries), None);
+    }
+    #[test]
+    fn recording_timeout_does_not_disable_experiment_mutation() {
+        assert_eq!(
+            hook_policy(true, false),
+            HookPolicy {
+                mutate: true,
+                record: false,
+            }
+        );
+        assert_eq!(
+            hook_policy(false, true),
+            HookPolicy {
+                mutate: false,
+                record: true,
+            }
+        );
+        assert_eq!(
+            hook_policy(false, false),
+            HookPolicy {
+                mutate: false,
+                record: false,
+            }
+        );
     }
     #[test]
     fn proposal_guard_changes_only_reviewed_local_off_proposals() {

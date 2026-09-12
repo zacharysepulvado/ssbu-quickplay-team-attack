@@ -1,17 +1,16 @@
 # Quickplay Team Attack ON — SSBU 13.0.5
 
-> [!CAUTION]
-> **Confirmed v0.3.0 timeout bug:** Twenty minutes after plugin startup, the
-> capture thread calls `application_probe::stop()`. This also disables the Team
-> Attack mutation callbacks and clears the armed session. The hooks remain
-> installed, but the mod no longer changes proposals after that point. Fully
-> closing and relaunching Smash resets the timer; re-copying Atmosphère is not
-> required. Treat v0.3.0 as an experimental time-limited build until a corrected
-> release is available.
+> [!IMPORTANT]
+> **v0.3.1 fixes the confirmed v0.3.0 20-minute timeout bug.** Diagnostic
+> recording still stops after 20 minutes, but the guarded Team Attack mutation
+> remains active for the lifetime of the Smash process. v0.3.1 has passed host
+> and Switch-target build validation; testing in a live session lasting longer
+> than 20 minutes is still required before this fix is considered hardware
+> verified.
 
 This Skyline plugin proposes Team Attack ON in Super Smash Bros. Ultimate
-Quickplay co-op. It was built for game version 13.0.5 and tested in
-online doubles matches against unmodified opponents. In the matches, both
+Quickplay co-op. It was built for game version 13.0.5 and tested in two fresh
+online doubles matches against unmodified opponents. In both matches, both
 teams could damage their own teammates.
 
 Pair it with a legal-stage Preferred Rules mod if you want competitive stages

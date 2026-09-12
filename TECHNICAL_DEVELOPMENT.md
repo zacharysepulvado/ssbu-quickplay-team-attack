@@ -144,3 +144,25 @@ every region, ruleset, matchmaking topology, plugin combination, or future
 version. The capture shows what the modded console proposed, received, selected,
 and applied; the gameplay observation establishes teammate damage on both
 consoles in these matches. It does not establish ban safety.
+
+## 10. Version 0.3.1 lifecycle correction
+
+Extended testing exposed a v0.3.0 lifecycle error: when the 20-minute capture
+window expired, the writer thread called `application_probe::stop()`. That
+function disabled the shared `ACTIVE` flag and cleared `ARMED_SESSION`, while
+`observe()` returned before reaching `mutate_if_guarded()`. The installed hooks
+therefore remained present but stopped changing Team Attack proposals.
+
+Version 0.3.1 separates the two lifetimes. The renamed
+`stop_recording()` disables only diagnostic capture. Hook dispatch now derives
+an explicit policy from the process-scoped experiment flag and the bounded
+recording flag. After recording ends, only the two write-capable callbacks
+(`local_copy` and `rule_submit`) continue far enough to evaluate the unchanged
+mutation guards; the other six callbacks return without reading game state.
+The armed session is no longer cleared merely because diagnostics stop.
+
+The logger remains bounded at 20 minutes to avoid indefinite SD-card writes and
+unbounded heartbeat growth. The final status line explicitly reports that
+observation stopped while mutation remains active. A host regression test
+requires the `mutate=true, record=false` policy, and the complete host and
+Switch-target validation suites are rerun for 0.3.1.

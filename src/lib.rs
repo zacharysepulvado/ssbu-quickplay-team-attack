@@ -21,7 +21,7 @@ mod codec_probe;
 #[cfg(target_os = "switch")]
 #[skyline::main(name = "quickplay_team_attack_probe")]
 pub fn main() {
-    skyline::println!("[team-attack] guarded proposal experiment 0.3.0\n");
+    skyline::println!("[team-attack] guarded proposal experiment 0.3.1\n");
     let config = match config::Config::load() {
         Ok(Some(config)) => config,
         Ok(None) => {
@@ -51,7 +51,7 @@ fn startup_error(error: &str) {
     let detail: String = error.chars().filter(|c| *c != '\0').take(300).collect();
     skyline::error::show_error(
         70,
-        "Team Attack experiment 0.3.0 could not start.\0",
+        "Team Attack experiment 0.3.1 could not start.\0",
         &format!("{detail}\n\nRecording did not start. Photograph this message and its Details. No match test is needed.\0"),
     );
 }
