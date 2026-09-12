@@ -92,4 +92,9 @@ signatures have been reviewed again.
 
 The source archive and technical development history are included so the
 community can audit the exact offsets, signatures, guards, callback behavior,
-tests, and known limits. See `TECHNICAL_DEVELOPMENT.md`.
+tests, and known limits. Reviewed game-code excerpts, including the generated
+codec-byte module, are intentionally excluded from the public repository and
+source archive. Builders can recreate them from a legally dumped SSBU 13.0.5 `main` using
+`tools/materialize_reviewed.py`; the expected offsets, lengths, and SHA-256
+digests are recorded in `src/reviewed/manifest.json`. See
+`TECHNICAL_DEVELOPMENT.md`.

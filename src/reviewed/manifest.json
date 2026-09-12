@@ -1,0 +1,17 @@
+{
+  "game_version": "13.0.5",
+  "segment": "decompressed main .text",
+  "files": [
+    {"name": "application.bin", "offset": "0x169bef0", "length": 11992, "sha256": "7a1c2181fe5ebe91062f3e4bc65002948df11f0bd291743ab3350e7b2d3530f1"},
+    {"name": "restore.bin", "offset": "0x16eb720", "length": 728, "sha256": "43186bcdcc2db0397ee3b1f05ee074e52cd7ddb861c0af24c68a08292498f488"},
+    {"name": "participant_copy.bin", "offset": "0x16e3ec0", "length": 472, "sha256": "0593160da159f02302ac00c9a1e1c913d8130a722735b1f3e1cdf1f2e718b5c4"},
+    {"name": "chooser.bin", "offset": "0x16ea390", "length": 412, "sha256": "69da4f2bc33e1bd01b224e4fda6e12e3f2a90ce9c3ca0790db0d080408f8061b"},
+    {"name": "submit_entry.bin", "offset": "0x1685cb0", "length": 48, "sha256": "ad66f6304386e117bc03b32a3df7e354195355183a4dd8a81158b1d5e015b1e6"},
+    {"name": "receive_entry.bin", "offset": "0x16f03b0", "length": 76, "sha256": "77dab17478cab9b9084eeed7e655b1907459a29fdda50e330af669d4ceefc88b"},
+    {"name": "receive_b4.bin", "offset": "0x16f0550", "length": 236, "sha256": "eb9273f8faa2f3d399099eb292c411ca8b0c9b7dc1d052e779fe6e3430310daa"}
+  ],
+  "codec_module": [
+    {"rust_const": "ENCODER", "offset": "0x16a4920", "length": 572, "sha256": "2aaff9bf7e1cf20fc26b8c19c0fb7d0c75ac334e18b3a7bef74113c2845bd260"},
+    {"rust_const": "DECODER", "offset": "0x16a4b60", "length": 548, "sha256": "6fd90ef93bc636ecf8fc7b05eb52e3e61091db9f9c2845058c7573455825596e"}
+  ]
+}

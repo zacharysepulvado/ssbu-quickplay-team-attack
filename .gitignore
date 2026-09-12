@@ -1,0 +1,17 @@
+/target/
+*.nro
+*.zip
+__pycache__/
+*.pyc
+captures/
+*.log
+*.jsonl
+candidate*.json
+main
+*.nsp
+*.xci
+*.nca
+*.keys
+src/reviewed/*.bin
+src/codec_bytes.rs
+research/*.json

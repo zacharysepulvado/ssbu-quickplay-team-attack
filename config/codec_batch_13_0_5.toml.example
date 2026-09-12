@@ -1,0 +1,20 @@
+# Offline observation only; captures only the statically identified Team Attack byte.
+enabled = true
+mode = "observe"
+expected_game_version = "13.0.5"
+serializer_text_offset = 0x16e2c50
+expected_prologue = "FB 0F 1A F8 FA 67 01 A9 F8 5F 02 A9 F6 57 03 A9 F4 4F 04 A9 FD 7B 05 A9 FD 43 01 91 94 E1 01 D0"
+caller_text_offset = 0x169462c
+expected_callsite = "89 39 01 94 B9 E3 01 D0 39 E3 1E 91 23 83 01 91 E0 03 18 AA E1 03 1F 2A E2 03 19 AA 0E 3A 01 94"
+reviewed_abi = "void_u8_ptr_v1"
+reviewed_buffer_len = 105
+evidence_reviewed = true
+offline_test_acknowledged = true
+capture_offsets = "11"
+run_label = "CODEC_OFFLINE_BATCH_01"
+max_dumps = 256
+
+# Independent one-byte global watch; original serializer hook remains enabled.
+poll_global_team_attack = true
+
+observe_rule_codec = true

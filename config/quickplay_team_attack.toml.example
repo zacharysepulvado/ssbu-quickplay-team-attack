@@ -1,0 +1,50 @@
+# Quickplay Team Attack research observer
+#
+# SAFE DEFAULT: this project installs no hook while enabled is false.
+enabled = false
+
+# Supported values: "disabled" or "observe".
+# There is intentionally no mutation mode in revision 0.2.
+mode = "disabled"
+
+# Compared with nn::oe::GetDisplayVersion at runtime.
+expected_game_version = "13.0.5"
+
+# Offset relative to Skyline's Text region, not a 0x7100000000 virtual address.
+# Keep this at zero until the 13.0.5 compact CSS serializer is independently
+# located from a legally dumped executable.
+serializer_text_offset = 0x0
+
+# Exact bytes at serializer_text_offset, written as hexadecimal byte pairs.
+# Require 16..64 bytes; the length must be a multiple of 4 bytes.
+# Wildcards are intentionally unsupported.
+expected_prologue = ""
+
+# Separate 16..64-byte exact signature starting at a reviewed direct BL call.
+# Its first instruction must branch to serializer_text_offset.
+caller_text_offset = 0x0
+expected_callsite = ""
+
+# Research attestations, NOT runtime ABI/buffer-allocation checks.
+# Set only after verifying the ABI, every selected initialized output byte,
+# function behavior, and a separate caller in your own 13.0.5 dump.
+reviewed_abi = ""
+reviewed_buffer_len = 0
+evidence_reviewed = false
+offline_test_acknowledged = false
+
+# Individual hexadecimal byte offsets, e.g. "04 05" (example syntax only).
+# Allowed envelope: 04..2C and 58..5C. Select only proven rule bytes.
+# Other bytes are not read and appear as -- in captures. Never select padding,
+# profile data, or bytes whose initialization has not been verified.
+capture_offsets = ""
+
+# One label per offline session, e.g. A1_OFF / A1_ON / A1_RETURN_OFF.
+run_label = "unlabelled"
+
+# Records cover 0x69 positions; only capture_offsets are read.
+# Accepted range: 1 through 256.
+max_dumps = 32
+
+# Optional reviewed 13.0.5 global watcher; general defaults stay inactive.
+poll_global_team_attack = false
