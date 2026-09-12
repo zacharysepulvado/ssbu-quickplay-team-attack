@@ -1,8 +1,8 @@
 # Quickplay Team Attack ON — SSBU 13.0.5
 
 This Skyline plugin proposes Team Attack ON in Super Smash Bros. Ultimate
-Quickplay co-op. It was built for game version 13.0.5 and tested in two fresh
-online doubles matches against unmodified opponents. In both matches, both
+Quickplay co-op. It was built for game version 13.0.5 and tested in
+online doubles matches against unmodified opponents. In the matches, both
 teams could damage their own teammates.
 
 Pair it with a legal-stage Preferred Rules mod if you want competitive stages
