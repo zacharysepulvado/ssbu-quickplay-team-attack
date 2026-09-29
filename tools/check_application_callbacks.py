@@ -74,6 +74,11 @@ def run(elf_path):
         u.mem_write(S+0x9ff8,struct.pack('<Q',identity))
         for slot in range(16):u.mem_write(S+0xa010+8+slot*0x78,struct.pack('<Q',identity if slot==3 else 0x88880000+slot))
         source=S+0xa798+3*0x1350+(1 if invalid else 0)
+        received=S+0xa010+3*0x1350+0x1688
+        def rule(a, value):
+            body=bytearray(44);body[:3]=b'\x01\x00\x04';body[0x11]=value
+            u.mem_write(a,bytes(body))
+        for a in [S+0x21f98,S+0x24638,source+0xf00,R,received]:rule(a,team)
         for a in [S+0x21fa9,S+0x24649,source+0xf11]:u.mem_write(a,bytes([team]))
         u.mem_write(R+0x11,bytes([team]));u.mem_write(R+0xc8,bytes([proposal_slot]));u.mem_write(S+0xb6a9+3*0x1350,bytes([team]))
         u.mem_write(H,asm('b '+hex(H+0x100),H))
@@ -154,6 +159,12 @@ def run(elf_path):
             elif kind==5:allowed|={(R+0x11,1),(R+0xc8,1)}
             elif kind==6:allowed.add((R+0x11,1))
             elif kind==7 and not invalid:allowed.add((S+0xb6a9+3*0x1350,1))
+            rule_base={0:S+0x21f98,1:source+0xf00,2:S+0x24638,3:S+0x24638,
+                       4:S+0x24638,5:R,6:R,7:received}.get(kind)
+            if rule_base is not None and not (invalid and kind in (1,7)):
+                allowed|={(rule_base+i,1) for i in list(range(3))+list(range(4,44))}
+            if kind==6:
+                allowed|={(received+i,1) for i in list(range(3))+list(range(4,44))}
         assert set(reads)<=allowed,(set(reads)-allowed)
         if not accesses_game:assert not reads
     cases=0

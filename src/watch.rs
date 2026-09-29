@@ -5,7 +5,7 @@ use crate::{config::Config, validation::ValidationResult};
 pub const GLOBAL_OFFSET: usize = 0x530_a981;
 pub const GUARD_OFFSET: usize = 0x531_44d8;
 pub const HEARTBEAT_MS: u64 = 5_000;
-pub const WATCH_LIMIT_MS: u64 = 20 * 60 * 1_000;
+pub const WATCH_LIMIT_MS: u64 = 90 * 60 * 1_000;
 
 /// Decode ADRP to a module-relative page. Text must be page aligned at runtime.
 fn adrp_page(pc: usize, instruction: u32, register: u32) -> Option<usize> {
@@ -72,6 +72,7 @@ pub struct Observation {
     pub initialized: bool,
     pub value: Option<u8>,
     pub serializer_calls: usize,
+    pub serializer_mutations: usize,
     pub stored_dumps: usize,
 }
 
@@ -151,6 +152,7 @@ mod tests {
             initialized: false,
             value: None,
             serializer_calls: 0,
+            serializer_mutations: 0,
             stored_dumps: 0,
         };
         assert!(schedule.should_log(0, state));

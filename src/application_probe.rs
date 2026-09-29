@@ -1,4 +1,4 @@
-//! Eight passive inline observations on reviewed MOV instructions. x16/x17 and
+//! Eight inline observations at reviewed instructions. x16/x17 and
 //! NZCV are dead at these sites; the callback never modifies InlineCtx or game
 //! memory. Original instructions and control flow run through Skyline trampolines.
 use crate::{
@@ -51,6 +51,21 @@ unsafe fn pointer(a: usize) -> usize {
         core::arch::asm!("ldr {v}, [{a}]",v=out(reg)v,a=in(reg)a,options(nostack,readonly,preserves_flags));
     }
     v
+}
+
+unsafe fn rule_digest(address: usize) -> application::RuleDigest {
+    if address == 0 {
+        return application::RuleDigest::invalid();
+    }
+    let head = unsafe { [byte(address), byte(address + 1), byte(address + 2)] };
+    if head != [1, 0, 4] {
+        return application::RuleDigest::invalid();
+    }
+    let mut core = [0; application::RULE_CORE_LEN];
+    for (index, value) in core.iter_mut().enumerate() {
+        *value = unsafe { byte(address + 4 + index) };
+    }
+    application::RuleDigest::from_parts(head, core)
 }
 
 unsafe fn write_byte(a: usize, value: u8) {
@@ -277,6 +292,27 @@ unsafe fn observe(kind: usize, ctx: &InlineCtx) {
             0xff
         };
         let initialized = unsafe { byte(base + watch::GUARD_OFFSET) } & 1 != 0;
+        let rule_address = match kind {
+            0 => session + application::LOCAL_TEAM - 0x11,
+            1 if participant < 16 => ctx.registers[1].x() as usize + 0xf00,
+            2..=4 => session + application::SELECTED_TEAM - 0x11,
+            5 => ctx.registers[2].x() as usize,
+            6 => ctx.registers[8].x() as usize,
+            7 if participant < 16 => ctx.registers[9].x() as usize + 0x1688,
+            _ => 0,
+        };
+        let rule = unsafe { rule_digest(rule_address) };
+        let prior_rule = if kind == 6 && participant < 16 {
+            unsafe {
+                rule_digest(
+                    (ctx.registers[19].x() as usize) + usize::from(participant) * 0x1350 + 0x1688,
+                )
+            }
+        } else {
+            application::RuleDigest::invalid()
+        };
+        let now = unsafe { skyline::nn::os::GetSystemTick() };
+        let serializer = crate::probe::serializer_snapshot(now);
         Event {
             kind: kind as u8,
             prepared: unsafe { byte(session + application::SESSION_PREPARED) },
@@ -294,8 +330,18 @@ unsafe fn observe(kind: usize, ctx: &InlineCtx) {
             mutation_action,
             mode,
             request: unsafe { word(session + application::SESSION_REQUEST) },
-            elapsed_ticks: unsafe { skyline::nn::os::GetSystemTick() }
-                .wrapping_sub(START.load(Ordering::Relaxed)),
+            elapsed_ticks: now.wrapping_sub(START.load(Ordering::Relaxed)),
+            rule,
+            prior_rule_valid: prior_rule.valid,
+            prior_rule_team: if prior_rule.valid {
+                prior_rule.core[0x11 - 4]
+            } else {
+                0xff
+            },
+            prior_rule_fingerprint: prior_rule.fingerprint,
+            serializer_calls: serializer.0,
+            serializer_mutations: serializer.1,
+            serializer_age_ticks: serializer.2,
         }
         .encode()
     }) {

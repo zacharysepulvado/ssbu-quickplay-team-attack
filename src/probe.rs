@@ -14,7 +14,7 @@ use skyline::{
 use std::{
     path::Path,
     ptr,
-    sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize, Ordering},
     time::Duration,
 };
 
@@ -24,6 +24,10 @@ static INSTALL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 static WRITER_READY: AtomicBool = AtomicBool::new(false);
 static MAX_DUMPS: AtomicUsize = AtomicUsize::new(0);
 static SERIALIZER_CALLS: AtomicUsize = AtomicUsize::new(0);
+static SERIALIZER_MUTATIONS: AtomicUsize = AtomicUsize::new(0);
+static LAST_SERIALIZER_TICK: AtomicU64 = AtomicU64::new(0);
+static BASE: AtomicUsize = AtomicUsize::new(0);
+static EXPERIMENT: AtomicBool = AtomicBool::new(false);
 static MASK: [AtomicU8; COMPACT_BUFFER_LEN] = [const { AtomicU8::new(0) }; COMPACT_BUFFER_LEN];
 static CAPTURES: CaptureStore = CaptureStore::new();
 
@@ -106,6 +110,16 @@ unsafe fn read_game_byte(address: usize) -> u8 {
     value as u8
 }
 
+/// One aligned machine-word load from validated permanent module data.
+unsafe fn read_game_word(address: usize) -> u32 {
+    let value: u32;
+    unsafe {
+        core::arch::asm!("ldr {value:w}, [{address}]", value = out(reg) value,
+            address = in(reg) address, options(nostack, readonly, preserves_flags));
+    }
+    value
+}
+
 fn live_version() -> Result<String, String> {
     let mut version = oe::DisplayVersion { name: [0; 16] };
     unsafe {
@@ -135,6 +149,11 @@ pub fn install(config: Config) -> Result<(), String> {
     // Skyline supplies mapped module boundaries. Bounds/size were checked above.
     let text = unsafe { std::slice::from_raw_parts(text_address as *const u8, text_len) };
     validation::validate_signatures(&config, text)?;
+    BASE.store(text_address, Ordering::Relaxed);
+    EXPERIMENT.store(
+        config.mode == crate::config::Mode::ProposalExperiment,
+        Ordering::Release,
+    );
     let observe_codec = config.observe_rule_codec;
     let observe_application = config.observe_rule_application;
     if observe_application {
@@ -258,7 +277,7 @@ pub fn install(config: Config) -> Result<(), String> {
                         crate::codec_probe::stop();
                         crate::application_probe::stop_recording();
                     let _ = log.status(
-                        "watch_limit_reached_20_minutes_observation_stopped_mutation_active",
+                        "watch_limit_reached_90_minutes_observation_stopped_mutation_active",
                     );
                     return;
                 }
@@ -327,6 +346,7 @@ pub fn install(config: Config) -> Result<(), String> {
                         initialized,
                         value,
                         serializer_calls: SERIALIZER_CALLS.load(Ordering::Relaxed),
+                        serializer_mutations: SERIALIZER_MUTATIONS.load(Ordering::Relaxed),
                         stored_dumps,
                     };
                     if schedule.should_log(elapsed_ms, state) {
@@ -397,10 +417,42 @@ unsafe extern "C" fn compact_serializer_observer(buffer: *mut u8) {
     }
     let original: CompactSerializer = unsafe { std::mem::transmute(address) };
     SERIALIZER_CALLS.fetch_add(1, Ordering::Relaxed);
+    LAST_SERIALIZER_TICK.store(
+        unsafe { skyline::nn::os::GetSystemTick() },
+        Ordering::Relaxed,
+    );
     unsafe {
         original(buffer);
     }
-    if buffer.is_null() || !WRITER_READY.load(Ordering::Acquire) {
+    if buffer.is_null() {
+        return;
+    }
+
+    if EXPERIMENT.load(Ordering::Acquire) {
+        let base = BASE.load(Ordering::Relaxed);
+        let head = unsafe {
+            [
+                ptr::read(buffer),
+                ptr::read(buffer.add(1)),
+                ptr::read(buffer.add(2)),
+            ]
+        };
+        let initialized = unsafe { read_game_byte(base + watch::GUARD_OFFSET) } & 1 != 0;
+        let team = unsafe { ptr::read(buffer.add(0x11)) };
+        if crate::application::serializer_mutation_guard(
+            unsafe { read_game_word(base + crate::application::MODE_OFFSET) },
+            initialized,
+            head,
+            team,
+        ) {
+            unsafe { ptr::write(buffer.add(0x11), 1) };
+            if unsafe { ptr::read(buffer.add(0x11)) } == 1 {
+                SERIALIZER_MUTATIONS.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+
+    if !WRITER_READY.load(Ordering::Acquire) {
         return;
     }
 
@@ -415,4 +467,21 @@ unsafe extern "C" fn compact_serializer_observer(buffer: *mut u8) {
         }
         bytes
     });
+}
+
+pub(crate) fn serializer_snapshot(now: u64) -> (u32, u32, u64) {
+    let last = LAST_SERIALIZER_TICK.load(Ordering::Relaxed);
+    (
+        SERIALIZER_CALLS
+            .load(Ordering::Relaxed)
+            .min(u32::MAX as usize) as u32,
+        SERIALIZER_MUTATIONS
+            .load(Ordering::Relaxed)
+            .min(u32::MAX as usize) as u32,
+        if last == 0 {
+            u64::MAX
+        } else {
+            now.wrapping_sub(last)
+        },
+    )
 }

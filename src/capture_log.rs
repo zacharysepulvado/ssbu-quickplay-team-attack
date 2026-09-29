@@ -114,8 +114,9 @@ impl CaptureLog {
             .map_or_else(|| "--".to_owned(), |v| format!("{v:02X}"));
         // Comment events use colons only; existing dump tools ignore them.
         writeln!(self.writer,
-            "# watch: elapsed_ms:{} initialized:{} team_attack_global:{} serializer_calls:{} stored_dumps:{}",
-            elapsed_ms, u8::from(state.initialized), value, state.serializer_calls, state.stored_dumps)
+            "# watch: elapsed_ms:{} initialized:{} team_attack_global:{} serializer_calls:{} serializer_mutations:{} stored_dumps:{}",
+            elapsed_ms, u8::from(state.initialized), value, state.serializer_calls,
+            state.serializer_mutations, state.stored_dumps)
     }
 
     pub fn dump_written(&mut self, sequence: usize, elapsed_ms: u64) -> io::Result<()> {
@@ -140,7 +141,7 @@ pub fn write_header(writer: &mut impl Write, config: &Config) -> io::Result<()> 
         writeln!(writer, "# global_init_guard_text_offset=0x53144d8")?;
         writeln!(writer, "# global_poll_interval_ms=250")?;
         writeln!(writer, "# watch_heartbeat_ms=5000")?;
-        writeln!(writer, "# watch_limit_ms=1200000")?;
+        writeln!(writer, "# watch_limit_ms=5400000")?;
         writeln!(writer, "# mutation_lifetime=process")?;
     }
     writeln!(

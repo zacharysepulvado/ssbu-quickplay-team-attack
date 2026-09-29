@@ -25,6 +25,57 @@ pub const NAMES: [&str; SITE_COUNT] = [
 
 pub const SUBMIT_ORIGINS: [&str; 4] = ["state_update", "local_record", "per_slot", "initial_local"];
 pub const MUTATION_ACTIONS: [&str; 2] = ["proposal_00_to_01", "local_mirror_00_to_01"];
+pub const RULE_CORE_LEN: usize = 0x29 - 1;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RuleDigest {
+    pub valid: bool,
+    pub fingerprint: u64,
+    pub head: [u8; 3],
+    pub core: [u8; RULE_CORE_LEN],
+}
+
+impl RuleDigest {
+    pub const fn invalid() -> Self {
+        Self {
+            valid: false,
+            fingerprint: 0,
+            head: [0; 3],
+            core: [0; RULE_CORE_LEN],
+        }
+    }
+
+    pub fn from_parts(head: [u8; 3], core: [u8; RULE_CORE_LEN]) -> Self {
+        if head != [1, 0, 4] {
+            return Self::invalid();
+        }
+        let mut fingerprint = 0xcbf2_9ce4_8422_2325u64;
+        for byte in head.into_iter().chain(core) {
+            fingerprint ^= u64::from(byte);
+            fingerprint = fingerprint.wrapping_mul(0x100_0000_01b3);
+        }
+        Self {
+            valid: true,
+            fingerprint,
+            head,
+            core,
+        }
+    }
+}
+
+pub const fn serializer_mutation_guard(
+    mode: u32,
+    initialized: bool,
+    head: [u8; 3],
+    team_attack: u8,
+) -> bool {
+    mode == COOP_MODE
+        && initialized
+        && head[0] == 1
+        && head[1] == 0
+        && head[2] == 4
+        && team_attack == 0
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct HookPolicy {
@@ -167,6 +218,13 @@ pub struct Event {
     pub mode: u32,
     pub request: u32,
     pub elapsed_ticks: u64,
+    pub rule: RuleDigest,
+    pub prior_rule_valid: bool,
+    pub prior_rule_team: u8,
+    pub prior_rule_fingerprint: u64,
+    pub serializer_calls: u32,
+    pub serializer_mutations: u32,
+    pub serializer_age_ticks: u64,
 }
 
 impl Event {
@@ -187,6 +245,16 @@ impl Event {
         b[16..24].copy_from_slice(&self.elapsed_ticks.to_le_bytes());
         b[24] = self.submit_origin;
         b[25] = self.mutation_action;
+        b[26] = self.rule.valid as u8;
+        b[27..35].copy_from_slice(&self.rule.fingerprint.to_le_bytes());
+        b[35..38].copy_from_slice(&self.rule.head);
+        b[38..78].copy_from_slice(&self.rule.core);
+        b[78] = self.prior_rule_valid as u8;
+        b[79] = self.prior_rule_team;
+        b[80..88].copy_from_slice(&self.prior_rule_fingerprint.to_le_bytes());
+        b[88..92].copy_from_slice(&self.serializer_calls.to_le_bytes());
+        b[92..96].copy_from_slice(&self.serializer_mutations.to_le_bytes());
+        b[96..104].copy_from_slice(&self.serializer_age_ticks.to_le_bytes());
         b
     }
 
@@ -205,16 +273,42 @@ impl Event {
             elapsed_ticks: u64::from_le_bytes(b[16..24].try_into().unwrap()),
             submit_origin: b[24],
             mutation_action: b[25],
+            rule: RuleDigest {
+                valid: b[26] != 0,
+                fingerprint: u64::from_le_bytes(b[27..35].try_into().unwrap()),
+                head: b[35..38].try_into().unwrap(),
+                core: b[38..78].try_into().unwrap(),
+            },
+            prior_rule_valid: b[78] != 0,
+            prior_rule_team: b[79],
+            prior_rule_fingerprint: u64::from_le_bytes(b[80..88].try_into().unwrap()),
+            serializer_calls: u32::from_le_bytes(b[88..92].try_into().unwrap()),
+            serializer_mutations: u32::from_le_bytes(b[92..96].try_into().unwrap()),
+            serializer_age_ticks: u64::from_le_bytes(b[96..104].try_into().unwrap()),
         }
     }
 
     pub fn line(self, sequence: usize) -> String {
-        format!("application_event: sequence:{sequence} elapsed_ms:{} elapsed_ticks:{} kind:{} mode:{:08X} request:{} prepared:{} rule_team:{:02X} global_team:{:02X} global_initialized:{} participant_slot:{:02X} local_slot:{:02X} selected_owner_slot:{:02X} submit_origin:{} mutation_action:{}",
+        let serializer_age = if self.serializer_age_ticks == u64::MAX {
+            "--".to_owned()
+        } else {
+            (self.serializer_age_ticks / 19_200).to_string()
+        };
+        let mut core = String::with_capacity(RULE_CORE_LEN * 2);
+        for byte in self.rule.core {
+            use std::fmt::Write as _;
+            let _ = write!(core, "{byte:02X}");
+        }
+        format!("application_event: sequence:{sequence} elapsed_ms:{} elapsed_ticks:{} kind:{} mode:{:08X} request:{} prepared:{} rule_team:{:02X} global_team:{:02X} global_initialized:{} participant_slot:{:02X} local_slot:{:02X} selected_owner_slot:{:02X} submit_origin:{} mutation_action:{} rule_valid:{} rule_fp:{:016X} rule_head:{:02X}{:02X}{:02X} rule_core:{} prior_rule_valid:{} prior_rule_team:{:02X} prior_rule_fp:{:016X} serializer_calls:{} serializer_mutations:{} serializer_age_ms:{}",
             self.elapsed_ticks / 19_200, self.elapsed_ticks, NAMES.get(self.kind as usize).unwrap_or(&"invalid"), self.mode, self.request,
             self.prepared, self.team, self.global, u8::from(self.initialized), self.participant,
             self.local_slot, self.selected_owner,
             SUBMIT_ORIGINS.get(self.submit_origin as usize).unwrap_or(&"unknown"),
-            MUTATION_ACTIONS.get(self.mutation_action as usize).unwrap_or(&"none"))
+            MUTATION_ACTIONS.get(self.mutation_action as usize).unwrap_or(&"none"),
+            u8::from(self.rule.valid), self.rule.fingerprint, self.rule.head[0], self.rule.head[1],
+            self.rule.head[2], core, u8::from(self.prior_rule_valid), self.prior_rule_team,
+            self.prior_rule_fingerprint, self.serializer_calls, self.serializer_mutations,
+            serializer_age)
     }
 }
 
@@ -264,11 +358,44 @@ mod tests {
             mode: 0x07010102,
             request: 2,
             elapsed_ticks: u32::MAX as u64 + 100,
+            rule: RuleDigest::from_parts([1, 0, 4], [0x5a; RULE_CORE_LEN]),
+            prior_rule_valid: true,
+            prior_rule_team: 0,
+            prior_rule_fingerprint: 0x1234,
+            serializer_calls: 7,
+            serializer_mutations: 5,
+            serializer_age_ticks: 38_400,
         };
         assert_eq!(Event::decode(&e.encode()), e);
         assert!(e
             .line(42)
             .contains("local_slot:02 selected_owner_slot:03 submit_origin:local_record"));
+        assert!(e
+            .line(42)
+            .contains("serializer_calls:7 serializer_mutations:5 serializer_age_ms:2"));
+    }
+
+    #[test]
+    fn rule_digest_and_serializer_guard_are_strict() {
+        let core = [0x5a; RULE_CORE_LEN];
+        let digest = RuleDigest::from_parts([1, 0, 4], core);
+        assert!(digest.valid);
+        assert_ne!(digest.fingerprint, 0);
+        assert_eq!(
+            RuleDigest::from_parts([0, 0, 4], core),
+            RuleDigest::invalid()
+        );
+        assert!(serializer_mutation_guard(COOP_MODE, true, [1, 0, 4], 0));
+        for input in [
+            (0, true, [1, 0, 4], 0),
+            (COOP_MODE, false, [1, 0, 4], 0),
+            (COOP_MODE, true, [0, 0, 4], 0),
+            (COOP_MODE, true, [1, 0, 4], 1),
+        ] {
+            assert!(!serializer_mutation_guard(
+                input.0, input.1, input.2, input.3
+            ));
+        }
     }
 
     #[test]
