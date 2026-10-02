@@ -200,7 +200,7 @@ unsafe fn observe(kind: usize, ctx: &InlineCtx) {
     );
     // Only local-copy and rule-submit hooks can mutate. Once recording ends,
     // all other callbacks return without reading game state.
-    if !policy.record && (!policy.mutate || !matches!(kind, 0 | 5)) {
+    if !policy.record && (!policy.mutate || !matches!(kind, 0 | 5)) && !matches!(kind, 2 | 4) {
         return;
     }
     // At submit entry the original ABI is (session, u16 command, buffer,
@@ -217,6 +217,23 @@ unsafe fn observe(kind: usize, ctx: &InlineCtx) {
     } else {
         0xff
     };
+    // Keep the local status current after the bounded logger stops. This is
+    // read-only and runs only at the existing selection callbacks.
+    if kind == 2 {
+        crate::marker_state::reset();
+    } else if kind == 4 {
+        let base = BASE.load(Ordering::Relaxed);
+        let session = ctx.registers[24].x() as usize;
+        if session != 0 {
+            crate::marker_state::publish(
+                unsafe { word(base + application::MODE_OFFSET) },
+                unsafe { word(session + application::SESSION_REQUEST) },
+                unsafe { byte(session + application::SELECTED_TEAM) },
+            );
+        } else {
+            crate::marker_state::reset();
+        }
+    }
     if !policy.record {
         return;
     }
