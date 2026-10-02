@@ -5,6 +5,7 @@ pub mod capture;
 pub mod capture_log;
 pub mod codec;
 pub mod config;
+pub mod marker_state;
 pub mod validation;
 pub mod watch;
 
