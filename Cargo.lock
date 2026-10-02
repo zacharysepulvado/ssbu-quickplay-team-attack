@@ -3,6 +3,20 @@
 version = 4
 
 [[package]]
+name = "cty"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
+
+[[package]]
+name = "imgui-api"
+version = "0.1.0"
+source = "git+https://github.com/Coolsonickirby/imgui-api?rev=9259902433138ec9c9ef9e4b152de01403f9456f#9259902433138ec9c9ef9e4b152de01403f9456f"
+dependencies = [
+ "cty",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -66,8 +80,9 @@ dependencies = [
 
 [[package]]
 name = "ssbu-quickplay-team-attack"
-version = "0.3.2-alpha.9"
+version = "0.3.2-alpha.10"
 dependencies = [
+ "imgui-api",
  "skyline",
 ]
 

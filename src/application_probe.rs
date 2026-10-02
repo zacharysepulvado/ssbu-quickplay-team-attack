@@ -229,6 +229,7 @@ unsafe fn observe(kind: usize, ctx: &InlineCtx) {
                 unsafe { word(base + application::MODE_OFFSET) },
                 unsafe { word(session + application::SESSION_REQUEST) },
                 unsafe { byte(session + application::SELECTED_TEAM) },
+                unsafe { skyline::nn::os::GetSystemTick() },
             );
         } else {
             crate::marker_state::reset();

@@ -21,7 +21,9 @@ TICK=19200*250+123
 def run(elf_path):
     with open(elf_path,'rb') as f:
         elf=ELFFile(f)
-        segs=[(s['p_vaddr'],s.data()) for s in elf.iter_segments() if s['p_type']=='PT_LOAD']
+        loads=[s for s in elf.iter_segments() if s['p_type']=='PT_LOAD']
+        segs=[(s['p_vaddr'],s.data()) for s in loads]
+        image_limit=(max(s['p_vaddr']+s['p_memsz'] for s in loads)+0xfff)&~0xfff
         symbols=list(elf.get_section_by_name('.symtab').iter_symbols())
         def symbol(tail):
             matches=[s['st_value'] for s in symbols if 'application_probe' in s.name and s.name.endswith(tail)]
@@ -60,7 +62,7 @@ def run(elf_path):
     handler=';'.join(backup+['mov x0, sp','ldr x16, [x17, #8]','blr x16']+restore)
     def case(kind,mode,team,initialized,active=True,invalid=False,repeats=1,command=0xb4,length=0xd0,null=False,experiment=False,prepared=1,armed=False,proposal_slot=3,origin=0x1690884):
         u=Uc(UC_ARCH_ARM64,UC_MODE_ARM)
-        for a,n in [(P,0x110000),(R,0x1000),(S,0x30000),(ST,0x10000),(H,0x10000),(G+0x5305000,0x1000),(G+0x530a000,0x1000),(G+0x5314000,0x1000)]:u.mem_map(a,n)
+        for a,n in [(P,image_limit),(R,0x1000),(S,0x30000),(ST,0x10000),(H,0x10000),(G+0x5305000,0x1000),(G+0x530a000,0x1000),(G+0x5314000,0x1000)]:u.mem_map(a,n)
         for a,b in segs:
             if b:u.mem_write(P+a,b)
         for a,v in relocs:u.mem_write(a,struct.pack('<Q',v))
@@ -97,7 +99,7 @@ def run(elf_path):
             if kind==5 and proposal_slot==3 and origin in (0x1687fec,0x1690884,0x16f52d8,0x16fa0e8):permitted_game_writes.add(R+0x11)
             if kind==0 and armed:permitted_game_writes.add(S+0x21fa9)
         def write(uc,access,a,size,value,data):
-            assert P+0x20000<=a and a+size<=P+0x110000 or ST<=a and a+size<=ST+0x10000 or (size==1 and a in permitted_game_writes),('forbidden write',hex(a),size)
+            assert P+0x20000<=a and a+size<=P+image_limit or ST<=a and a+size<=ST+0x10000 or (size==1 and a in permitted_game_writes),('forbidden write',hex(a),size)
         def read(uc,access,a,size,value,data):
             if S<=a<S+0x30000 or R<=a<R+0x1000 or G<=a<G+0x6000000:reads.append((a,size))
         u.hook_add(UC_HOOK_CODE,code);u.hook_add(UC_HOOK_MEM_WRITE,write);u.hook_add(UC_HOOK_MEM_READ,read)
@@ -122,9 +124,11 @@ def run(elf_path):
             assert u.reg_read(UC_ARM64_REG_FPCR)==0 and u.reg_read(UC_ARM64_REG_FPSR)==0x800009f
         valid_submit = kind!=5 or command & 0xffff == 0xb4 and length & 0xffffffff == 0xd0 and not null
         qualifies = active and valid_submit
-        accesses_game = qualifies or experiment and kind in (0,5) and valid_submit
+        accesses_game = qualifies or experiment and kind in (0,5) and valid_submit or kind==4
         captured=min(repeats,64) if qualifies else 0
-        assert len(calls)==captured
+        # The local marker samples the selected rule at apply_after, even
+        # after diagnostic recording stops, and gets its own timestamp.
+        assert len(calls)==captured+(repeats if kind==4 else 0)
         bank=kind+(8 if mode==0x07010102 else 0)
         # Verified release CaptureStore layout: 256 128-byte slots, then next.
         events=syms['EVENTS']+bank*0x8008

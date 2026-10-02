@@ -18,11 +18,13 @@ mod application_probe;
 mod codec_bytes;
 #[cfg(target_os = "switch")]
 mod codec_probe;
+#[cfg(target_os = "switch")]
+mod marker_overlay;
 
 #[cfg(target_os = "switch")]
 #[skyline::main(name = "quickplay_team_attack_probe")]
 pub fn main() {
-    skyline::println!("[team-attack] receive transition correlation 0.3.2-alpha.9\n");
+    skyline::println!("[team-attack] local selected-rule marker 0.3.2-alpha.10\n");
     let config = match config::Config::load() {
         Ok(Some(config)) => config,
         Ok(None) => {
@@ -39,9 +41,12 @@ pub fn main() {
         skyline::println!("[team-attack] disabled; no hook installed\n");
         return;
     }
-    if let Err(error) = probe::install(config) {
-        skyline::println!("[team-attack] observer refused: {error}; recording stopped\n");
-        startup_error(&error);
+    match probe::install(config) {
+        Err(error) => {
+            skyline::println!("[team-attack] observer refused: {error}; recording stopped\n");
+            startup_error(&error);
+        }
+        Ok(()) => marker_overlay::install(),
     }
 }
 
@@ -52,7 +57,7 @@ fn startup_error(error: &str) {
     let detail: String = error.chars().filter(|c| *c != '\0').take(300).collect();
     skyline::error::show_error(
         70,
-        "Team Attack experiment 0.3.2-alpha.9 could not start.\0",
+        "Team Attack experiment 0.3.2-alpha.10 could not start.\0",
         &format!("{detail}\n\nRecording did not start. Photograph this message and its Details. No match test is needed.\0"),
     );
 }

@@ -1,5 +1,6 @@
 /target/
 *.nro
+lib/*.a
 *.zip
 __pycache__/
 *.pyc
