@@ -36,3 +36,23 @@ NRO were structurally validated, and their SHA-256 values are:
 The upstream `libimgui_smash.nro` v1.0.0 has SHA-256
 `61e19e1b593826b1216228c6536cf2603b512154a8fecc548203e245bb86ed3e`.
 The UI path and match timing remain hardware pending.
+
+## Hardware launch finding (October 2026)
+
+Four captures from alpha.10 (`capture-0034` through `0037`) stopped after the
+eight passive application sites were installed. Smash then showed its generic
+software-closed error. The SD card screenshot showed the alpha.10 NRO at
+1,257,472 bytes and no `libimgui_smash.nro` in the Skyline plugin directory.
+Restoring the 135,168-byte alpha.6 NRO and its config let Smash launch. This
+strongly implicates the alpha.10 renderer dependency at startup, but the
+generic error and short captures cannot prove an exact exception site.
+
+The next source draft resolves the host's two registration functions with
+`nn::ro::LookupSymbol` when the plugin initializes. If either is absent, it
+skips the display and retains the guarded proposal. This is uncompiled and
+unverified on hardware. The previous build toolchain is absent from the
+current execution environment; do not package or install the old alpha.10
+NRO as the revised display test. The desired behavior baseline is alpha.6,
+whose proposal and serializer mutations the alpha.9 source retained, but the
+alpha.9 observer adds instrumentation and should not be described as byte-for-
+byte alpha.6.

@@ -199,7 +199,7 @@ unsafe fn observe(kind: usize, ctx: &InlineCtx) {
         ACTIVE.load(Ordering::Acquire),
     );
     // Only local-copy and rule-submit hooks can mutate. Once recording ends,
-    // all other callbacks return without reading game state.
+    // only those and the read-only marker selection callbacks remain active.
     if !policy.record && (!policy.mutate || !matches!(kind, 0 | 5)) && !matches!(kind, 2 | 4) {
         return;
     }

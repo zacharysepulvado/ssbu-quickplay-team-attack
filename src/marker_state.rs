@@ -4,7 +4,7 @@
 //! selected record has been copied, and clear the prior result at the next
 //! selection. No network message or game rule is changed here.
 
-use core::sync::atomic::{AtomicU64, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicU64, Ordering};
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -14,12 +14,12 @@ pub enum Status {
     On = 2,
 }
 
-static SELECTED: AtomicU8 = AtomicU8::new(Status::Unknown as u8);
-static SELECTED_AT: AtomicU64 = AtomicU64::new(0);
+// Publish the status and its timestamp together. The render thread must not
+// pair the previous match's status with the next match's timestamp.
+static SNAPSHOT: AtomicU64 = AtomicU64::new(0);
 
 pub fn reset() {
-    SELECTED.store(Status::Unknown as u8, Ordering::Release);
-    SELECTED_AT.store(0, Ordering::Release);
+    SNAPSHOT.store(0, Ordering::Release);
 }
 
 pub fn publish(mode: u32, request: u32, selected_team: u8, tick: u64) {
@@ -32,12 +32,20 @@ pub fn publish(mode: u32, request: u32, selected_team: u8, tick: u64) {
     } else {
         Status::Unknown
     };
-    SELECTED_AT.store(tick, Ordering::Relaxed);
-    SELECTED.store(status as u8, Ordering::Release);
+    let snapshot = if tick <= u64::MAX >> 2 {
+        (tick << 2) | status as u64
+    } else {
+        0
+    };
+    SNAPSHOT.store(snapshot, Ordering::Release);
 }
 
 pub fn current() -> Status {
-    match SELECTED.load(Ordering::Acquire) {
+    decode(SNAPSHOT.load(Ordering::Acquire))
+}
+
+fn decode(snapshot: u64) -> Status {
+    match snapshot & 3 {
         1 => Status::Off,
         2 => Status::On,
         _ => Status::Unknown,
@@ -46,12 +54,13 @@ pub fn current() -> Status {
 
 /// A late render callback must never show a previous match's result.
 pub fn current_recent(now: u64, max_age_ticks: u64) -> Status {
-    let status = current();
+    let snapshot = SNAPSHOT.load(Ordering::Acquire);
+    let status = decode(snapshot);
     if status == Status::Unknown {
         return status;
     }
-    let at = SELECTED_AT.load(Ordering::Acquire);
-    if at == 0 || now.wrapping_sub(at) > max_age_ticks {
+    let at = snapshot >> 2;
+    if at == 0 || now < at || now - at > max_age_ticks {
         Status::Unknown
     } else {
         status
@@ -79,6 +88,13 @@ mod tests {
         publish(crate::application::COOP_MODE, 0, 1, 202);
         assert_eq!(current(), Status::Unknown);
         publish(0, 2, 1, 203);
+        assert_eq!(current(), Status::Unknown);
+        publish(crate::application::COOP_MODE, 2, 1, 300);
+        assert_eq!(current_recent(299, 20), Status::Unknown);
+        assert_eq!(current_recent(320, 20), Status::On);
+        publish(crate::application::COOP_MODE, 2, 0, 400);
+        assert_eq!(current_recent(400, 20), Status::Off);
+        publish(crate::application::COOP_MODE, 2, 1, u64::MAX);
         assert_eq!(current(), Status::Unknown);
     }
 }

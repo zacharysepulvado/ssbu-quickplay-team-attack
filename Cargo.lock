@@ -80,7 +80,7 @@ dependencies = [
 
 [[package]]
 name = "ssbu-quickplay-team-attack"
-version = "0.3.2-alpha.10"
+version = "0.3.2-alpha.10.1"
 dependencies = [
  "imgui-api",
  "skyline",
